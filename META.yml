@@ -1,0 +1,27 @@
+---
+name: ToolSet
+version: 0.10
+author:
+  - David A Golden <dagolden@cpan.org>
+abstract: Load your commonly-used modules in a single import
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  perl: 5.006
+build_requires:
+  Cwd: 0
+  File::Basename: 0
+  File::Path: 0
+  File::Spec::Functions: 0
+  Getopt::Std: 0
+  Test::More: 0
+  Text::Wrap: 0
+provides:
+  ToolSet:
+    file: lib/ToolSet.pm
+    version: 0.10
+  ToolSet::SWC:
+    file: lib/ToolSet/SWC.pm
+    version: 0.10
+generated_by: Module::Build version 0.2703
