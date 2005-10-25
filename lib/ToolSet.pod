@@ -8,7 +8,7 @@ ToolSet - Load your commonly-used modules in a single import
 
 =head1 VERSION
 
-This document describes ToolSet version 0.10
+This document describes ToolSet version 0.11
 
 =head1 SYNOPSIS
 
@@ -22,10 +22,15 @@ Creating a ToolSet:
      ToolSet->set_strict(1);
      ToolSet->set_warnings(1);
  
+     # define exports from other modules
      ToolSet->export(
          'Carp'          => undef,       # get the defaults
          'Scalar::Util'  => 'refaddr',   # or a specific list
      );
+ 
+     # define exports from this module
+     our @EXPORT = qw( shout );
+     sub shout { print uc shift };
  
      1; # modules must be true
 
@@ -40,7 +45,8 @@ Using a ToolSet:
      # Carp and refaddr are imported
  
      carp "We can carp!";
-     print refaddr []; 
+     print refaddr [];
+     shout "We can shout, too!";
 
 =head1 DESCRIPTION
 
@@ -68,6 +74,14 @@ subclass.
      use base 'ToolSet';
 
 ToolSet must be used as a base class.
+
+=head2 C<<< @EXPORT >>>
+
+     our @EXPORT = qw( shout };
+     sub shout { print uc shift }
+
+Functions defined in the ToolSet subclass can be exported by default during
+C<<< use() >>> by listing them in an C<<< @EXPORT >>> array.
 
 =head2 C<<< export >>>
 
@@ -119,6 +133,15 @@ Additional error messages include:
 
 C<<< "Invalid import specification for MODULE" >>> -- an incorrect type was
 provided for the list to be imported (e.g. a hash reference)
+
+=back
+
+=over
+
+=item *
+
+C<<< "Can't import missing subroutine NAME" >>> -- the named subroutine is listed in
+C<<< @EXPORT >>>, but is not defined in the ToolSet subclass
 
 =back
 
