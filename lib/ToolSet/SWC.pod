@@ -6,10 +6,6 @@
 
 ToolSet::SWC - Sample toolset with strict, warnings and Carp
 
-=head1 VERSION
-
-This document describes ToolSet::SWC version 0.10
-
 =head1 SYNOPSIS
 
      use ToolSet::SWC;

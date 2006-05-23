@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = "0.12";
+our $VERSION = "0.13";
 
 #--------------------------------------------------------------------------#
 # package variables
@@ -90,10 +90,6 @@ __END__
 = NAME
 
 ToolSet - Load your commonly-used modules in a single import
-
-= VERSION
-
-This document describes ToolSet version 0.11
 
 = SYNOPSIS
 

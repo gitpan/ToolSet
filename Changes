@@ -1,5 +1,10 @@
 Revision history for ToolSet
 
+0.13 Tue May 23 00:09:22 EDT 2006
+    - made pod/pod_coverage author tests skip by default
+    - removed always-out-of-date version info from Pod
+    - moved build_requires to build for better CPANPLUS compatibility
+
 0.12 Sun Dec  4 23:45:35 EST 2005
     - fixed Build.PL generation of Makefile.PL
 
