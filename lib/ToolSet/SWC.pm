@@ -1,7 +1,7 @@
 package ToolSet::SWC;
 use strict;
 
-our $VERSION = "0.13";
+our $VERSION = '0.14';
 
 use base 'ToolSet';
 
@@ -21,6 +21,10 @@ __END__
 = NAME
 
 ToolSet::SWC - Sample toolset with strict, warnings and Carp
+
+= VERSION
+
+This documentation describes version %%VERSION%%.
 
 = SYNOPSIS
 

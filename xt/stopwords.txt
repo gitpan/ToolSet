@@ -1,0 +1,12 @@
+CPAN
+CTRL
+DAGOLDEN
+Foo
+MSWin
+README
+STDERR
+STDOUT
+ToolSet
+toolset
+XS
+html
