@@ -5,15 +5,14 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.14';
+our $VERSION = '0.99';
 
 #--------------------------------------------------------------------------#
 # package variables
 #--------------------------------------------------------------------------#
 
-my %use_strict;
-my %use_warnings;
-my %use_feature;
+my %use_pragmas;
+my %no_pragmas;
 my %exports_of;
 
 #--------------------------------------------------------------------------#
@@ -30,17 +29,23 @@ sub export {
 sub import {
     my ($class) = @_;
     my $caller = caller;
-    if ( $use_strict{ $class } ) {
-        require strict; 
-        strict->import;
+    if ( $use_pragmas{ $class } ) {
+      for my $p ( keys %{ $use_pragmas{$class} } ) {
+        my $module = $p;
+        $module =~ s{::}{/}g;
+        $module .= ".pm";
+        require $module;
+        $p->import( @{ $use_pragmas{ $class }{ $p } } );
+      }
     }
-    if ( $use_warnings{ $class } ) {
-        require warnings;
-        warnings->import;
-    }
-    if ( $use_feature{ $class } ) {
-        require feature;
-        feature->import( $use_feature{ $class } );
+    if ( $no_pragmas{ $class } ) {
+      for my $p ( keys %{ $no_pragmas{$class} } ) {
+        my $module = $p;
+        $module =~ s{::}{/}g;
+        $module .= ".pm";
+        require $module;
+        $p->unimport( @{ $no_pragmas{ $class }{ $p } } );
+      }
     }
     while ( my ( $mod, $request ) = each %{ $exports_of{ $class } } ) {
         my $evaltext;
@@ -75,21 +80,36 @@ sub import {
 }
 
 sub set_strict {
-    my ($class, $value) = @_;
-    my $caller = caller;
-    $use_strict{ $caller } = $value || 0;
+  my ($class, $value) = @_;
+  return unless $value;
+  my $caller = caller;
+  $use_pragmas{ $caller }{ strict } = [];
 }
 
 sub set_warnings {
-    my ($class, $value) = @_;
-    my $caller = caller;
-    $use_warnings{ $caller } = $value || 0;
+  my ($class, $value) = @_;
+  return unless $value;
+  my $caller = caller;
+  $use_pragmas{ $caller }{ warnings } = [];
 }
 
 sub set_feature {
-    my ($class, $value) = @_;
-    my $caller = caller;
-    $use_feature{ $caller } = $value || '';
+  my ($class, @args) = @_;
+  return unless @args;
+  my $caller = caller;
+  $use_pragmas{ $caller }{ feature } = [ @args ];
+}
+
+sub use_pragma {
+  my ($class, $pragma, @args) = @_;
+  my $caller = caller;
+  $use_pragmas{ $caller }{ $pragma } = [ @args ];
+}
+
+sub no_pragma {
+  my ($class, $pragma, @args) = @_;
+  my $caller = caller;
+  $no_pragmas{ $caller }{ $pragma } = [ @args ];
 }
 
 
@@ -115,9 +135,9 @@ Creating a ToolSet:
 
     use base 'ToolSet'; 
     
-    ToolSet->set_strict(1);
-    ToolSet->set_warnings(1);
-    ToolSet->set_feature( qw/say switch/ ); # perl 5.10
+    ToolSet->use_pragma( 'strict' );
+    ToolSet->use_pragma( 'warnings' );
+    ToolSet->use_pragma( qw/feature say switch/ ); # perl 5.10
 
     # define exports from other modules
     ToolSet->export(
@@ -129,7 +149,7 @@ Creating a ToolSet:
     our @EXPORT = qw( shout );
     sub shout { print uc shift };
     
-    1; # modules must be true
+    1; # modules must return true
 
 Using a ToolSet:
 
@@ -154,8 +174,8 @@ specifies modules to be imported together into other code.
 
 ToolSet is designed to be a superclass -- subclasses will specify specific
 modules to bundle.  ToolSet supports custom import lists for each included
-module and even supports the {strict} and {warnings} pragmas, optionally
-enabling those pragmas when the ToolSet subclass is used.
+module and even supports compile-time pragmas like {strict}, {warnings}
+and {feature}. 
 
 A ToolSet module does not physically bundle the component modules, but rather
 specifies lists of modules to be used together and import specifications for
@@ -177,7 +197,7 @@ ToolSet must be used as a base class.
     our @EXPORT = qw( shout };
     sub shout { print uc shift }
 
-Functions defined in the ToolSet subclass can be exported by default during
+Functions defined in the ToolSet subclass can be automatically exported during
 {use()} by listing them in an {@EXPORT} array.
 
 == {export}
@@ -203,27 +223,40 @@ provided to {use()}:
 Elements in an array are passed to {use()} as a white-space separated list, so
 elements may not themselves contain spaces or unexpected results will occur.
 
-== {set_feature}
+== {use_pragma}
 
-  ToolSet->set_feature( ":5.10" );
-  ToolSet->set_feature( qw/say switch/ );
+  ToolSet->use_pragma( 'strict' );         # use strict;
+  ToolSet->use_pragma( 'feature', ':5.10' ); # use feature ':5.10';
 
-For Perl 5.10 or later, enables newer language features in modules the {use()} 
-this one.
+Specifies a compile-time pragma to enable and optional arguments to that
+pragma.  This must only be used with pragmas that act via the magic {$^H} or
+{%^H} variables.  It must not be used with modules that have other side-effects
+during import() such as exporting functions.
 
-== {set_strict}
+== {no_pragma}
 
-  ToolSet->set_strict(1);
-  ToolSet->set_strict(0); # default
+  ToolSet->no_pragma( 'indirect' ); # no indirect;
 
-Determines whether strict will enabled for modules that {use()} this one.
+Like {use_pragma}, but disables a pragma instead.
 
-== {set_warnings}
+If a pragma is specified in both a {use_pragma} and {no_pragma} statement, the
+{use_pragma} will be executed first.  This allow turning on a pragma with 
+default settings and then disabling some of them.
 
-  ToolSet->set_warnings(1);
-  ToolSet->set_warnings(0); # default
+  ToolSet->use_pragma( 'strict' );
+  ToolSet->no_pragma ( 'strict', 'refs' ); 
 
-Determines whether warnings will enabled for modules that {use()} this one.
+== {set_feature} (DEPRECATED)
+
+See {use_pragma} instead.
+
+== {set_strict} (DEPRECATED)
+
+See {use_pragma} instead.
+
+== {set_warnings} (DEPRECATED)
+
+See {use_pragma} instead.
 
 = DIAGNOSTICS
 
@@ -247,13 +280,6 @@ ToolSet requires no configuration files or environment variables.
 ToolSet requires at least Perl 5.6.  ToolSet subclasses will, of course, be
 dependent on any modules they load.
 
-= INCOMPATIBILITIES
-
-The only pragmas that are explicitly supported are {strict} and {warnings}, as
-these have a lexical scope and will not function properly if called from within
-the {eval} statement used for importing other modules.  Other pragmas may or
-may not work depending on if they have a compile-time or run-time effect.
-
 = SEE ALSO
 
 Similar functionality is provided by the [Toolkit] module, though that 
@@ -261,50 +287,36 @@ module requires defining the bundle via text files found within directories
 in {PERL5LIB} and uses source filtering to insert their contents as files
 are compiled.
 
-= BUGS AND LIMITATIONS
+= BUGS
 
-No bugs have been reported.
-
-Please report any bugs or feature requests at
-{bug-toolset@rt.cpan.org}, or through the web interface at
-[http://rt.cpan.org].
+Please report any bugs or feature using the CPAN Request Tracker.  
+Bugs can be submitted through the web interface at 
+[http://rt.cpan.org/Dist/Display.html?Queue=ToolSet]
 
 When submitting a bug or request, please include a test-file or a patch to an
 existing test-file that illustrates the bug or desired feature.
 
 = AUTHOR
 
-David A Golden  {<dagolden@cpan.org>}
+David A. Golden (DAGOLDEN)
 
-= LICENCE AND COPYRIGHT
+= COPYRIGHT AND LICENSE
 
-Copyright (c) 2005, David A Golden {<dagolden@cpan.org>}. All rights reserved.
+Copyright (c) 2005-2008 by David A. Golden. All rights reserved.
 
-This module is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself. See the {LICENSE} file included with this
-module.
+Licensed under Apache License, Version 2.0 (the "License").
+You may not use this file except in compliance with the License.
+A copy of the License was distributed with this file or you may obtain a 
+copy of the License from http://www.apache.org/licenses/LICENSE-2.0
 
-= DISCLAIMER OF WARRANTY
+Files produced as output though the use of this software, shall not be
+considered Derivative Works, but shall be considered the original work of the
+Licensor.
 
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 =end wikidoc
